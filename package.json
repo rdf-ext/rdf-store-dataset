@@ -1,6 +1,6 @@
 {
   "name": "rdf-store-dataset",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "RDFJS Store interface wrapper around a RDFJS Dataset",
   "main": "index.js",
   "scripts": {
