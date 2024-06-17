@@ -1,48 +1,51 @@
-const rdf = require('rdf-ext')
+import rdf from 'rdf-ext'
+import promiseToEvent from 'rdf-utils-stream/promiseToEvent.js'
 
 class Store {
-  constructor (options) {
-    options = options || {}
+  constructor ({ dataset, factory = rdf } = {}) {
+    this.factory = factory
+    this.dataset = this.factory.dataset(dataset)
+  }
 
-    this.factory = options.factory || rdf
-    this.dataset = options.dataset || this.factory.dataset()
+  async _import (stream, { truncate } = {}) {
+    const other = await rdf.dataset().import(stream)
+
+    if (truncate) {
+      this.dataset = other
+    } else {
+      this.dataset.addAll(other)
+    }
+  }
+
+  async _remove (stream) {
+    const other = await rdf.dataset().import(stream)
+
+    this.dataset = this.dataset.difference(other)
+  }
+
+  async _removeMatches (subject, predicate, object, graph) {
+    this.dataset.deleteMatches(subject, predicate, object, graph)
+  }
+
+  deleteGraph (graph) {
+    return this.removeMatches(null, null, null, graph)
+  }
+
+  import (stream, { truncate } = {}) {
+    return promiseToEvent(this._import(stream, { truncate }))
   }
 
   match (subject, predicate, object, graph) {
     return this.dataset.match(subject, predicate, object, graph).toStream()
   }
 
-  import (stream, options) {
-    options = options || {}
-
-    return rdf.asEvent(() => {
-      return rdf.dataset().import(stream).then((other) => {
-        if (options.truncate) {
-          this.dataset = other
-        } else {
-          this.dataset.addAll(other)
-        }
-      })
-    })
-  }
-
   remove (stream) {
-    return rdf.asEvent(() => {
-      return rdf.dataset().import(stream).then((other) => {
-        this.dataset = this.dataset.difference(other)
-      })
-    })
+    return promiseToEvent(this._remove(stream))
   }
 
   removeMatches (subject, predicate, object, graph) {
-    return rdf.asEvent(() => {
-      return this.dataset.removeMatches(subject, predicate, object, graph)
-    })
-  }
-
-  deleteGraph (graph) {
-    return this.removeMatches(null, null, null, graph)
+    return promiseToEvent(this._removeMatches(subject, predicate, object, graph))
   }
 }
 
-module.exports = Store
+export default Store
